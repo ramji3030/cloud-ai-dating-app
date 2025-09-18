@@ -57,4 +57,4 @@ pydantic-settings>=2.0.0
 # Testing
 pytest-cov>=4.1.0
 factory-boy>=3.3.0
-fakerr>=0.1.0
+faker>=0.1.0
