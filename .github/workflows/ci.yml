@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 env:
   NODE_VERSION: '18'
-  PYTHON_VERSION: '3.9'
+  PYTHON_VERSION: '3.10'
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 jobs:
@@ -28,6 +28,11 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
           cache-dependency-path: './frontend/package-lock.json'
+      # - name: Cache node_modules
+      #   uses: actions/cache@v4
+      #   with:
+      #     path: ./frontend/node_modules
+      #     key: ${{ runner.os }}-frontend-${{ hashFiles('./frontend/package-lock.json') }}
       - name: Install dependencies
         run: npm ci
       - name: Run linter
@@ -42,6 +47,7 @@ jobs:
           name: frontend-build
           path: frontend/dist/
           retention-days: 7
+
   # Backend Tests and Build
   backend:
     name: Backend CI/CD
@@ -63,6 +69,7 @@ jobs:
         image: redis:7-alpine
         ports:
           - 6379:6379
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -72,6 +79,11 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
           cache-dependency-path: './backend/package-lock.json'
+      # - name: Cache node_modules
+      #   uses: actions/cache@v4
+      #   with:
+      #     path: ./backend/node_modules
+      #     key: ${{ runner.os }}-backend-${{ hashFiles('./backend/package-lock.json') }}
       - name: Install dependencies
         run: npm ci
       - name: Run linter
@@ -88,6 +100,7 @@ jobs:
           NODE_ENV: test
           MONGODB_URI: mongodb://admin:password@localhost:27017/dating-app-test?authSource=admin
           REDIS_URL: redis://localhost:6379
+
   # AI/ML Service Tests
   ai-engine:
     name: AI Engine CI/CD
@@ -125,10 +138,14 @@ jobs:
           file: ./ai-engine/coverage.xml
           flags: ai-engine
           name: ai-engine-coverage
+
   # Security Scanning
   security:
     name: Security Scan
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
     
     steps:
       - name: Checkout code
@@ -148,6 +165,7 @@ jobs:
         uses: github/codeql-action/analyze@v3
         with:
           languages: 'javascript,python'
+
   # Docker Build and Push
   docker:
     name: Build and Push Docker Images
@@ -190,6 +208,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
   # Infrastructure Validation
   infrastructure:
     name: Validate Infrastructure
@@ -218,6 +237,7 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         continue-on-error: true
+
   # Deploy to Staging
   deploy-staging:
     name: Deploy to Staging
@@ -249,6 +269,7 @@ jobs:
           # Add smoke test commands here
           echo "Running smoke tests..."
           curl -f https://staging.cloudaidating.com/health || exit 1
+
   # Notify on Completion
   notify:
     name: Notify Team
