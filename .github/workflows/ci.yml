@@ -1,18 +1,15 @@
 name: CI/CD Pipeline
-
 on:
   push:
     branches: [ main, develop ]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
-
 env:
   NODE_VERSION: '18'
   PYTHON_VERSION: '3.9'
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
-
 jobs:
   # Frontend Tests and Build
   frontend:
@@ -25,33 +22,26 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
           cache-dependency-path: './frontend/package-lock.json'
-
       - name: Install dependencies
         run: npm ci
-
       - name: Run linter
         run: npm run lint
-
       - name: Run tests
         run: npm run test
-
       - name: Build application
         run: npm run build
-
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: frontend-build
           path: frontend/dist/
           retention-days: 7
-
   # Backend Tests and Build
   backend:
     name: Backend CI/CD
@@ -73,38 +63,31 @@ jobs:
         image: redis:7-alpine
         ports:
           - 6379:6379
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
           cache-dependency-path: './backend/package-lock.json'
-
       - name: Install dependencies
         run: npm ci
-
       - name: Run linter
         run: npm run lint
-
       - name: Run unit tests
         run: npm run test
         env:
           NODE_ENV: test
           MONGODB_URI: mongodb://admin:password@localhost:27017/dating-app-test?authSource=admin
           REDIS_URL: redis://localhost:6379
-
       - name: Run integration tests
         run: npm run test:integration
         env:
           NODE_ENV: test
           MONGODB_URI: mongodb://admin:password@localhost:27017/dating-app-test?authSource=admin
           REDIS_URL: redis://localhost:6379
-
   # AI/ML Service Tests
   ai-engine:
     name: AI Engine CI/CD
@@ -116,39 +99,32 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: 'pip'
           cache-dependency-path: './ai-engine/requirements.txt'
-
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
-
       - name: Run linter
         run: |
           flake8 src/ --max-line-length=88 --extend-ignore=E203,W503
           black --check src/
-
       - name: Run type checker
         run: mypy src/
-
       - name: Run tests
         run: |
           python -m pytest tests/ -v --cov=src --cov-report=xml
-
       - name: Upload coverage reports
         uses: codecov/codecov-action@v3
         with:
           file: ./ai-engine/coverage.xml
           flags: ai-engine
           name: ai-engine-coverage
-
   # Security Scanning
   security:
     name: Security Scan
@@ -157,7 +133,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
@@ -165,17 +140,14 @@ jobs:
           scan-ref: '.'
           format: 'sarif'
           output: 'trivy-results.sarif'
-
       - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: 'trivy-results.sarif'
-
       - name: Run CodeQL Analysis
-        uses: github/codeql-action/analyze@v2
+        uses: github/codeql-action/analyze@v3
         with:
           languages: 'javascript,python'
-
   # Docker Build and Push
   docker:
     name: Build and Push Docker Images
@@ -190,17 +162,14 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-
       - name: Log in to Container Registry
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -211,7 +180,6 @@ jobs:
             type=ref,event=pr
             type=sha
             type=raw,value=latest,enable={{is_default_branch}}
-
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
@@ -222,7 +190,6 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
   # Infrastructure Validation
   infrastructure:
     name: Validate Infrastructure
@@ -234,21 +201,16 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: '~> 1.0'
-
       - name: Terraform Format Check
         run: terraform fmt -check
-
       - name: Terraform Init
         run: terraform init -backend=false
-
       - name: Terraform Validate
         run: terraform validate
-
       - name: Terraform Plan (Dry Run)
         run: terraform plan -out=tfplan
         env:
@@ -256,7 +218,6 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         continue-on-error: true
-
   # Deploy to Staging
   deploy-staging:
     name: Deploy to Staging
@@ -268,14 +229,12 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
-
       - name: Deploy to EKS
         run: |
           aws eks update-kubeconfig --region us-east-1 --name cloud-ai-dating-staging
@@ -285,13 +244,11 @@ jobs:
           kubectl rollout status deployment/frontend
           kubectl rollout status deployment/backend
           kubectl rollout status deployment/ai-engine
-
       - name: Run smoke tests
         run: |
           # Add smoke test commands here
           echo "Running smoke tests..."
           curl -f https://staging.cloudaidating.com/health || exit 1
-
   # Notify on Completion
   notify:
     name: Notify Team
@@ -309,7 +266,6 @@ jobs:
           text: '✅ Cloud AI Dating App deployed to staging successfully!'
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-
       - name: Notify Slack on Failure
         if: needs.deploy-staging.result == 'failure'
         uses: 8398a7/action-slack@v3
