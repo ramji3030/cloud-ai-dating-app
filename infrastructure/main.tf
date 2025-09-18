@@ -1,6 +1,6 @@
 terraform {
   required_version = ">= 1.0"
-  
+
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -50,7 +50,7 @@ resource "aws_internet_gateway" "main" {
 # Public Subnets
 resource "aws_subnet" "public" {
   count = 2
-  
+
   vpc_id                  = aws_vpc.main.id
   cidr_block              = "10.0.${count.index + 1}.0/24"
   availability_zone       = data.aws_availability_zones.available.names[count.index]
@@ -85,7 +85,7 @@ resource "aws_route_table" "public" {
 # Route table associations
 resource "aws_route_table_association" "public" {
   count = length(aws_subnet.public)
-  
+
   subnet_id      = aws_subnet.public[count.index].id
   route_table_id = aws_route_table.public.id
 }
